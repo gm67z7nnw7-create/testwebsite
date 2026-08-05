@@ -1,0 +1,443 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ポリリズム練習アプリ - 左右個別判定</title>
+  <style>
+    * { box-sizing: border-box; touch-action: manipulation; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: #0f172a;
+      color: #f8fafc;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      margin: 0;
+      padding: 16px;
+    }
+    .card {
+      background: #1e293b;
+      padding: 20px;
+      border-radius: 16px;
+      width: 100%;
+      max-width: 440px;
+      box-shadow: 0 10px 25px rgba(0,0,0,0.3);
+    }
+    h1 {
+      font-size: 1.4rem;
+      text-align: center;
+      margin-top: 0;
+      color: #38bdf8;
+    }
+    .track {
+      margin: 16px 0;
+    }
+    .track-title {
+      font-size: 0.85rem;
+      margin-bottom: 6px;
+      display: flex;
+      justify-content: space-between;
+      color: #94a3b8;
+    }
+    .grid {
+      display: flex;
+      gap: 6px;
+    }
+    .beat {
+      flex: 1;
+      height: 40px;
+      border-radius: 8px;
+      background: #334155;
+      transition: background 0.05s, transform 0.05s;
+    }
+    .beat.active-a {
+      background: #38bdf8 !important;
+      transform: scale(1.05);
+      box-shadow: 0 0 12px #38bdf8;
+    }
+    .beat.active-b {
+      background: #f43f5e !important;
+      transform: scale(1.05);
+      box-shadow: 0 0 12px #f43f5e;
+    }
+    .controls {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      margin-top: 16px;
+    }
+    .preset-btns {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 8px;
+    }
+    button {
+      padding: 10px;
+      border: none;
+      border-radius: 8px;
+      font-size: 0.95rem;
+      font-weight: bold;
+      cursor: pointer;
+      transition: opacity 0.2s;
+    }
+    button:active { opacity: 0.8; }
+    .btn-preset {
+      background: #475569;
+      color: white;
+    }
+    .btn-preset.active {
+      background: #0284c7;
+    }
+    .btn-play {
+      background: #10b981;
+      color: white;
+      font-size: 1.1rem;
+      width: 100%;
+    }
+    .btn-play.playing {
+      background: #ef4444;
+    }
+    .slider-group {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-size: 0.9rem;
+    }
+    input[type=range] {
+      width: 60%;
+    }
+
+    /* 左右タップ練習エリアのスタイル */
+    .tap-section {
+      margin-top: 20px;
+      padding-top: 16px;
+      border-top: 1px solid #334155;
+      text-align: center;
+    }
+    .tap-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      margin-top: 10px;
+    }
+    .tap-col {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+    .tap-btn {
+      width: 100%;
+      height: 80px;
+      color: white;
+      font-size: 1.1rem;
+      border-radius: 12px;
+      user-select: none;
+      -webkit-user-select: none;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      gap: 4px;
+    }
+    .tap-btn-a {
+      background: #0284c7;
+      border: 2px solid #38bdf8;
+    }
+    .tap-btn-a:active {
+      background: #0369a1;
+      transform: scale(0.96);
+    }
+    .tap-btn-b {
+      background: #be123c;
+      border: 2px solid #f43f5e;
+    }
+    .tap-btn-b:active {
+      background: #9f1239;
+      transform: scale(0.96);
+    }
+    .btn-sub {
+      font-size: 0.75rem;
+      opacity: 0.8;
+      font-weight: normal;
+    }
+    .feedback {
+      font-weight: bold;
+      font-size: 0.95rem;
+      height: 24px;
+      margin-top: 8px;
+    }
+    .fb-perfect { color: #34d399; }
+    .fb-early { color: #fbbf24; }
+    .fb-late { color: #f87171; }
+  </style>
+</head>
+<body>
+
+<div class="card">
+  <h1>ポリリズム メトロノーム</h1>
+
+  <!-- トラック A (青) -->
+  <div class="track">
+    <div class="track-title">
+      <span>リズム A (高音)</span>
+      <span id="label-a">3 拍</span>
+    </div>
+    <div class="grid" id="grid-a"></div>
+  </div>
+
+  <!-- トラック B (赤) -->
+  <div class="track">
+    <div class="track-title">
+      <span>リズム B (低音)</span>
+      <span id="label-b">2 拍</span>
+    </div>
+    <div class="grid" id="grid-b"></div>
+  </div>
+
+  <div class="controls">
+    <div class="slider-group">
+      <label>BPM: <span id="bpm-val">90</span></label>
+      <input type="range" id="bpm" min="40" max="180" value="90">
+    </div>
+
+    <div class="preset-btns">
+      <button class="btn-preset active" onclick="setRhythm(3, 2, this)">3 : 2</button>
+      <button class="btn-preset" onclick="setRhythm(4, 3, this)">4 : 3</button>
+      <button class="btn-preset" onclick="setRhythm(5, 4, this)">5 : 4</button>
+    </div>
+
+    <button class="btn-play" id="play-btn" onclick="togglePlay()">スタート</button>
+  </div>
+
+  <!-- 左右タップ練習エリア -->
+  <div class="tap-section">
+    <div style="font-size: 0.85rem; color: #94a3b8;">両手でリズムを同時に叩こう！</div>
+    
+    <div class="tap-grid">
+      <!-- リズムA用タップボタン (左手/青) -->
+      <div class="tap-col">
+        <button class="tap-btn tap-btn-a" id="tap-btn-a">
+          <span>リズム A</span>
+          <span class="btn-sub">(高音)</span>
+        </button>
+        <div class="feedback" id="feedback-a"></div>
+      </div>
+
+      <!-- リズムB用タップボタン (右手/赤) -->
+      <div class="tap-col">
+        <button class="tap-btn tap-btn-b" id="tap-btn-b">
+          <span>リズム B</span>
+          <span class="btn-sub">(低音)</span>
+        </button>
+        <div class="feedback" id="feedback-b"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  let countA = 3;
+  let countB = 2;
+  let bpm = 90;
+  let isPlaying = false;
+  let audioCtx = null;
+  let timerId = null;
+
+  let step = 0;
+  let expectedNextBeatsA = []; // リズムAの正解タイミング履歴
+  let expectedNextBeatsB = []; // リズムBの正解タイミング履歴
+
+  function buildGrids() {
+    const gridA = document.getElementById('grid-a');
+    const gridB = document.getElementById('grid-b');
+    gridA.innerHTML = '';
+    gridB.innerHTML = '';
+
+    for (let i = 0; i < countA; i++) {
+      const div = document.createElement('div');
+      div.className = 'beat';
+      gridA.appendChild(div);
+    }
+    for (let i = 0; i < countB; i++) {
+      const div = document.createElement('div');
+      div.className = 'beat';
+      gridB.appendChild(div);
+    }
+
+    document.getElementById('label-a').innerText = `${countA} 拍`;
+    document.getElementById('label-b').innerText = `${countB} 拍`;
+  }
+
+  function setRhythm(a, b, btn) {
+    countA = a;
+    countB = b;
+    document.querySelectorAll('.btn-preset').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    resetPosition();
+    buildGrids();
+  }
+
+  document.getElementById('bpm').addEventListener('input', (e) => {
+    bpm = e.target.value;
+    document.getElementById('bpm-val').innerText = bpm;
+    if (isPlaying) {
+      restartTimer();
+    }
+  });
+
+  function playSound(freq, type = 'sine', vol = 0.3, dur = 0.1) {
+    if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    if (audioCtx.state === 'suspended') audioCtx.resume();
+
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+
+    osc.type = type;
+    osc.frequency.value = freq;
+
+    gain.gain.setValueAtTime(vol, audioCtx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + dur);
+
+    osc.connect(gain);
+    gain.connect(audioCtx.destination);
+
+    osc.start();
+    osc.stop(audioCtx.currentTime + dur);
+  }
+
+  function scheduler() {
+    const totalSteps = countA * countB;
+    const beatsA = document.getElementById('grid-a').children;
+    const beatsB = document.getElementById('grid-b').children;
+
+    for (let b of beatsA) b.classList.remove('active-a');
+    for (let b of beatsB) b.classList.remove('active-b');
+
+    const now = performance.now();
+
+    // トラックAの発音タイミング
+    if (step % countB === 0) {
+      const idxA = (step / countB) % countA;
+      beatsA[idxA].classList.add('active-a');
+      playSound(880, 'sine', 0.3, 0.1); // 高音
+      expectedNextBeatsA.push(now);
+      if (expectedNextBeatsA.length > 5) expectedNextBeatsA.shift();
+    }
+
+    // トラックBの発音タイミング
+    if (step % countA === 0) {
+      const idxB = (step / countA) % countB;
+      beatsB[idxB].classList.add('active-b');
+      playSound(440, 'sine', 0.3, 0.1); // 低音
+      expectedNextBeatsB.push(now);
+      if (expectedNextBeatsB.length > 5) expectedNextBeatsB.shift();
+    }
+
+    step = (step + 1) % totalSteps;
+  }
+
+  function togglePlay() {
+    isPlaying = !isPlaying;
+    const btn = document.getElementById('play-btn');
+
+    if (isPlaying) {
+      btn.innerText = 'ストップ';
+      btn.classList.add('playing');
+      step = 0;
+      expectedNextBeatsA = [];
+      expectedNextBeatsB = [];
+      scheduler();
+      restartTimer();
+    } else {
+      btn.innerText = 'スタート';
+      btn.classList.remove('playing');
+      clearInterval(timerId);
+      resetPosition();
+      document.getElementById('feedback-a').innerText = '';
+      document.getElementById('feedback-b').innerText = '';
+    }
+  }
+
+  function restartTimer() {
+    clearInterval(timerId);
+    const totalSteps = countA * countB;
+    const cycleDuration = (60 / bpm) * countA;
+    const stepDuration = (cycleDuration / totalSteps) * 1000;
+    timerId = setInterval(scheduler, stepDuration);
+  }
+
+  function resetPosition() {
+    step = 0;
+    const beatsA = document.getElementById('grid-a')?.children || [];
+    const beatsB = document.getElementById('grid-b')?.children || [];
+    for (let b of beatsA) b.classList.remove('active-a');
+    for (let b of beatsB) b.classList.remove('active-b');
+  }
+
+  // タップ判定処理（トラック別）
+  function handleTap(track) {
+    const isA = track === 'A';
+    const freq = isA ? 1046.5 : 523.25; // C6 (高音タップ) : C5 (低音タップ)
+    
+    // タップ打音を再生（木管風サウンド）
+    playSound(freq, 'triangle', 0.5, 0.05);
+
+    if (!isPlaying) return;
+
+    const expectedBeats = isA ? expectedNextBeatsA : expectedNextBeatsB;
+    if (expectedBeats.length === 0) return;
+
+    const tapTime = performance.now();
+    
+    // 最も近いガイド音との時間を計算
+    let minDiff = Infinity;
+    expectedBeats.forEach(beatTime => {
+      const diff = tapTime - beatTime;
+      if (Math.abs(diff) < Math.abs(minDiff)) {
+        minDiff = diff;
+      }
+    });
+
+    const fb = document.getElementById(isA ? 'feedback-a' : 'feedback-b');
+    const threshold = 75; // Perfect判定の許容誤差（ミリ秒）
+
+    if (Math.abs(minDiff) <= threshold) {
+      fb.innerText = '✨ Perfect!';
+      fb.className = 'feedback fb-perfect';
+    } else if (minDiff < 0) {
+      fb.innerText = '⚡ Early';
+      fb.className = 'feedback fb-early';
+    } else {
+      fb.innerText = '🐢 Late';
+      fb.className = 'feedback fb-late';
+    }
+  }
+
+  // マルチタッチ・イベントバインド
+  const btnA = document.getElementById('tap-btn-a');
+  const btnB = document.getElementById('tap-btn-b');
+
+  const addTapListeners = (elem, track) => {
+    elem.addEventListener('touchstart', (e) => {
+      e.preventDefault();
+      handleTap(track);
+    }, { passive: false });
+
+    elem.addEventListener('mousedown', (e) => {
+      // タッチデバイスでの重複発音防止
+      if (e.detail > 0) handleTap(track);
+    });
+  };
+
+  addTapListeners(btnA, 'A');
+  addTapListeners(btnB, 'B');
+
+  // 初期化
+  buildGrids();
+</script>
+
+</body>
+</html>
